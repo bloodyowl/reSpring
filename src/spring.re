@@ -19,10 +19,7 @@ external requestAnimationFrame : (float => unit) => animationFrameTimerId = "" [
 
 external cancelAnimationFrame : animationFrameTimerId => unit = "" [@@bs.val];
 
-type springCommands = {
-  start: unit => unit,
-  stop: unit => unit
-};
+type springCommands = {start: unit => unit, stop: unit => unit};
 
 type t = (float, float);
 
@@ -50,3 +47,27 @@ let spring ::stiffness=180.0 ::damping=12.0 ::from ::toValue ::onChange ::onRest
       }
   }
 };
+
+let parallel springs =>
+  Js.Promise.all (
+    List.map
+      (
+        fun item =>
+          Js.Promise.make (
+            fun ::resolve reject::_reject =>
+              (item onRest::(fun () => resolve true [@bs]) ()).start ()
+          )
+      )
+      springs |> Array.of_list
+  ) |>
+  Js.Promise.then_ (fun _ => Js.Promise.resolve true);
+
+let rec sequence list =>
+  switch list {
+  | [] => Js.Promise.resolve true
+  | [head, ...tail] =>
+    Js.Promise.make (
+      fun ::resolve reject::_reject => (head onRest::(fun () => resolve true [@bs]) ()).start ()
+    ) |>
+    Js.Promise.then_ (fun _ => sequence tail)
+  };
