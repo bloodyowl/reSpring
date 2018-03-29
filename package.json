@@ -1,20 +1,15 @@
 {
   "name": "re-spring",
   "description": "A basic animation spring",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "scripts": {
     "clean": "bsb -clean-world",
     "build": "bsb -make-world",
     "watch": "bsb -make-world -w"
   },
-  "keywords": [
-    "BuckleScript",
-    "Reason",
-    "animation",
-    "spring"
-  ],
+  "keywords": ["BuckleScript", "Reason", "animation", "spring"],
   "license": "MIT",
   "devDependencies": {
-    "bs-platform": "1.7.5"
+    "bs-platform": "^2.2.2"
   }
 }

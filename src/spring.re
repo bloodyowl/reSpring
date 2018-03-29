@@ -2,72 +2,93 @@ let unitOfTime = 1.0 /. 60.0;
 
 let precision = 0.01;
 
-let step ::lastValue ::lastVelocity ::toValue ::stiffness ::damping => {
+let step = (~lastValue, ~lastVelocity, ~toValue, ~stiffness, ~damping) => {
   let spring = -. stiffness *. (lastValue -. toValue);
   let damper = -. damping *. lastVelocity;
   let all = spring +. damper;
   let nextVelocity = lastVelocity +. all *. unitOfTime;
   let nextValue = lastValue +. nextVelocity *. unitOfTime;
   let shouldRest =
-    abs_float nextVelocity < precision && abs_float (nextValue -. toValue) < precision;
-  (shouldRest ? toValue : nextValue, shouldRest ? 0.0 : nextVelocity)
+    abs_float(nextVelocity) < precision
+    && abs_float(nextValue -. toValue) < precision;
+  (shouldRest ? toValue : nextValue, shouldRest ? 0.0 : nextVelocity);
 };
 
 type animationFrameTimerId;
 
-external requestAnimationFrame : (float => unit) => animationFrameTimerId = "" [@@bs.val];
+[@bs.val]
+external requestAnimationFrame : (float => unit) => animationFrameTimerId = "";
 
-external cancelAnimationFrame : animationFrameTimerId => unit = "" [@@bs.val];
+[@bs.val] external cancelAnimationFrame : animationFrameTimerId => unit = "";
 
-type springCommands = {start: unit => unit, stop: unit => unit};
+type springCommands = {
+  start: unit => unit,
+  stop: unit => unit,
+};
 
 type t = (float, float);
 
-let spring ::stiffness=180.0 ::damping=12.0 ::from ::toValue ::onChange ::onRest=? () => {
-  let animationFrameId = ref None;
-  let rec tick (currentValue, currentVelocity) => {
+let spring =
+    (
+      ~stiffness=180.0,
+      ~damping=12.0,
+      ~from,
+      ~toValue,
+      ~onChange,
+      ~onRest=?,
+      (),
+    ) => {
+  let animationFrameId = ref(None);
+  let rec tick = ((currentValue, currentVelocity)) => {
     let (value, velocity) =
-      step lastValue::currentValue lastVelocity::currentVelocity ::toValue ::stiffness ::damping;
-    onChange (value, velocity);
+      step(
+        ~lastValue=currentValue,
+        ~lastVelocity=currentVelocity,
+        ~toValue,
+        ~stiffness,
+        ~damping,
+      );
+    onChange((value, velocity));
     if (velocity == 0.0 || value == toValue) {
-      switch onRest {
-      | Some func => func ()
+      switch (onRest) {
+      | Some(func) => func()
       | None => ()
-      }
+      };
     } else {
-      animationFrameId := Some (requestAnimationFrame (fun _ => tick (value, velocity)))
-    }
+      animationFrameId :=
+        Some(requestAnimationFrame((_) => tick((value, velocity))));
+    };
   };
   {
-    start: fun () => animationFrameId := Some (requestAnimationFrame (fun _ => tick from)),
-    stop: fun () =>
-      switch !animationFrameId {
-      | Some id => cancelAnimationFrame id
+    start: () =>
+      animationFrameId := Some(requestAnimationFrame((_) => tick(from))),
+    stop: () =>
+      switch (animationFrameId^) {
+      | Some(id) => cancelAnimationFrame(id)
       | None => ()
-      }
-  }
+      },
+  };
 };
 
-let parallel springs =>
-  Js.Promise.all (
-    List.map
-      (
-        fun item =>
-          Js.Promise.make (
-            fun ::resolve reject::_reject =>
-              (item onRest::(fun () => resolve true [@bs]) ()).start ()
-          )
-      )
-      springs |> Array.of_list
-  ) |>
-  Js.Promise.then_ (fun _ => Js.Promise.resolve true);
+let parallel = springs =>
+  Js.Promise.all(
+    List.map(
+      item =>
+        Js.Promise.make((~resolve, ~reject as _reject) =>
+          item(~onRest=() => resolve(. true), ()).start()
+        ),
+      springs,
+    )
+    |> Array.of_list,
+  )
+  |> Js.Promise.then_((_) => Js.Promise.resolve(true));
 
-let rec sequence list =>
-  switch list {
-  | [] => Js.Promise.resolve true
+let rec sequence = list =>
+  switch (list) {
+  | [] => Js.Promise.resolve(true)
   | [head, ...tail] =>
-    Js.Promise.make (
-      fun ::resolve reject::_reject => (head onRest::(fun () => resolve true [@bs]) ()).start ()
-    ) |>
-    Js.Promise.then_ (fun _ => sequence tail)
+    Js.Promise.make((~resolve, ~reject as _reject) =>
+      head(~onRest=() => resolve(. true), ()).start()
+    )
+    |> Js.Promise.then_((_) => sequence(tail))
   };

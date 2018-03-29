@@ -1,19 +1,24 @@
-type springCommands = {start: unit => unit, stop: unit => unit};
+type springCommands = {
+  start: unit => unit,
+  stop: unit => unit,
+};
 
 type t = (float, float);
 
 let spring:
-  stiffness::float? =>
-  damping::float? =>
-  from::(float, float) =>
-  toValue::float =>
-  onChange::(t => 'a) =>
-  onRest::(unit => unit)? =>
-  unit =>
+  (
+    ~stiffness: float=?,
+    ~damping: float=?,
+    ~from: (float, float),
+    ~toValue: float,
+    ~onChange: t => 'a,
+    ~onRest: unit => unit=?,
+    unit
+  ) =>
   springCommands;
 
 
-/**
+/***
  * Spring.(
  *   parallel [
  *     spring from::0 to::10 onChange::(reduce (fun (value, _) => MoveItem value)),
@@ -24,10 +29,11 @@ let spring:
  *   })
  * )
  */
-let parallel: list (onRest::(unit => unit) => unit => springCommands) => Js.Promise.t bool;
+let parallel:
+  list((~onRest: unit => unit, unit) => springCommands) => Js.Promise.t(bool);
 
 
-/**
+/***
  * Spring.(
  *   sequence [
  *     spring from::0 to::10 onChange::(reduce (fun (value, _) => MoveItem value)),
@@ -38,4 +44,5 @@ let parallel: list (onRest::(unit => unit) => unit => springCommands) => Js.Prom
  *   })
  * )
  */
-let sequence: list (onRest::(unit => unit) => unit => springCommands) => Js.Promise.t bool;
+let sequence:
+  list((~onRest: unit => unit, unit) => springCommands) => Js.Promise.t(bool);
